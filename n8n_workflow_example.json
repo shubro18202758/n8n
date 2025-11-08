@@ -1,0 +1,192 @@
+{
+  "name": "Emotion Detection Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emotion-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/detect-emotion",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({ \"image\": $json.body.image }) }}"
+      },
+      "id": "http-request-1",
+      "name": "Detect Emotion API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.primary_emotion}}",
+              "operation": "equals",
+              "value2": "SAD"
+            },
+            {
+              "value1": "={{$json.primary_emotion}}",
+              "operation": "equals",
+              "value2": "ANGRY"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "if-node-1",
+      "name": "Check Negative Emotion",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "channel": "#alerts",
+        "text": "=⚠️ Negative emotion detected!\n\nEmotion: {{$json.primary_emotion}}\nConfidence: {{$json.confidence}}%\nTimestamp: {{$now.toISO()}}",
+        "otherOptions": {}
+      },
+      "id": "slack-1",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [910, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "your-sheet-id",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{$now.toISO()}}",
+            "Emotion": "={{$json.primary_emotion}}",
+            "Confidence": "={{$json.confidence}}",
+            "FaceCount": "={{$json.faces_count}}"
+          }
+        },
+        "options": {}
+      },
+      "id": "sheets-1",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [910, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "2",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "respond-1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Detect Emotion API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Emotion API": {
+      "main": [
+        [
+          {
+            "node": "Check Negative Emotion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Negative Emotion": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ Emotion Recognition AI - Powered by AWS</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>
+                <span class="emoji-decoration">✨</span>
+                Emotion Recognition AI
+                <span class="emoji-decoration">🎭</span>
+            </h1>
+            <p>Powered by AWS Rekognition & Intelligent Analysis</p>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Left Column: Camera & Capture -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="card-title-icon">📸</span>
+                    Live Camera Feed
+                </div>
+
+                <!-- Camera Container -->
+                <div class="camera-container">
+                    <!-- Video Feed (hidden initially) -->
+                    <video id="video-feed" class="hidden" autoplay playsinline></video>
+                    
+                    <!-- Camera Placeholder -->
+                    <div id="camera-placeholder" class="camera-placeholder">
+                        <div>📷</div>
+                        <p style="font-size: 1.2rem; margin-top: 1rem; opacity: 0.8;">Click "Start Camera" to begin</p>
+                    </div>
+
+                    <!-- Camera Overlay -->
+                    <div class="camera-overlay hidden" id="camera-overlay">
+                        <div class="status-badge">
+                            <span class="status-dot"></span>
+                            <span>Live</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="start-camera-btn">
+                        <span class="btn-icon">🎥</span>
+                        Start Camera
+                    </button>
+                    <button class="btn btn-secondary hidden" id="stop-camera-btn">
+                        <span class="btn-icon">⏹️</span>
+                        Stop Camera
+                    </button>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-success" id="capture-btn" disabled>
+                        <span class="btn-icon">📷</span>
+                        Capture & Analyze
+                    </button>
+                    <button class="btn btn-secondary" id="upload-btn">
+                        <span class="btn-icon">📁</span>
+                        Upload Image
+                    </button>
+                    <input type="file" id="file-input" accept="image/*" class="hidden">
+                </div>
+
+                <!-- Camera Filters -->
+                <div style="margin-top: 2rem;">
+                    <div class="card-title" style="font-size: 1.5rem;">
+                        <span class="card-title-icon">🎨</span>
+                        Camera Filters
+                    </div>
+                    
+                    <div class="filters-grid">
+                        <button class="filter-btn active" data-filter="none">
+                            <div class="filter-preview filter-none"></div>
+                            <span>None</span>
+                        </button>
+                        <button class="filter-btn" data-filter="grayscale">
+                            <div class="filter-preview filter-grayscale"></div>
+                            <span>B&W</span>
+                        </button>
+                        <button class="filter-btn" data-filter="sepia">
+                            <div class="filter-preview filter-sepia"></div>
+                            <span>Vintage</span>
+                        </button>
+                        <button class="filter-btn" data-filter="warm">
+                            <div class="filter-preview filter-warm"></div>
+                            <span>Warm</span>
+                        </button>
+                        <button class="filter-btn" data-filter="cool">
+                            <div class="filter-preview filter-cool"></div>
+                            <span>Cool</span>
+                        </button>
+                        <button class="filter-btn" data-filter="vibrant">
+                            <div class="filter-preview filter-vibrant"></div>
+                            <span>Vibrant</span>
+                        </button>
+                        <button class="filter-btn" data-filter="dramatic">
+                            <div class="filter-preview filter-dramatic"></div>
+                            <span>Dramatic</span>
+                        </button>
+                        <button class="filter-btn" data-filter="blur">
+                            <div class="filter-preview filter-blur"></div>
+                            <span>Soft</span>
+                        </button>
+                        <button class="filter-btn" data-filter="contrast">
+                            <div class="filter-preview filter-contrast"></div>
+                            <span>High Contrast</span>
+                        </button>
+                        <button class="filter-btn" data-filter="invert">
+                            <div class="filter-preview filter-invert"></div>
+                            <span>Invert</span>
+                        </button>
+                        <button class="filter-btn" data-filter="saturate">
+                            <div class="filter-preview filter-saturate"></div>
+                            <span>Pop</span>
+                        </button>
+                        <button class="filter-btn" data-filter="huerotate">
+                            <div class="filter-preview filter-huerotate"></div>
+                            <span>Psychedelic</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Report Generator -->
+                <div style="margin-top: 2rem;">
+                    <div class="card-title" style="font-size: 1.5rem;">
+                        <span class="card-title-icon">📊</span>
+                        Report Generator
+                    </div>
+                    
+                    <div class="settings-grid">
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span>📄</span>
+                                Export Format
+                            </div>
+                            <div class="setting-control">
+                                <button class="setting-btn active" data-format="pdf">PDF</button>
+                                <button class="setting-btn" data-format="json">JSON</button>
+                                <button class="setting-btn" data-format="csv">CSV</button>
+                            </div>
+                        </div>
+
+                        <div class="setting-item" style="grid-column: 1 / -1;">
+                            <button class="btn btn-success" id="generate-report-btn" style="width: 100%; margin-top: 0.5rem;" disabled>
+                                <span class="btn-icon">📥</span>
+                                Generate & Download Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Results -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="card-title-icon">🎭</span>
+                    Emotion Analysis Results
+                </div>
+
+                <!-- Results Container -->
+                <div class="results-container" id="results-container">
+                    <!-- Initial State -->
+                    <div id="initial-state">
+                        <div class="emotion-display">
+                            <div class="emotion-emoji">🤖</div>
+                            <div class="emotion-label" style="font-size: 2rem; opacity: 0.7;">
+                                Waiting for Analysis...
+                            </div>
+                            <p style="opacity: 0.6; margin-top: 1rem;">
+                                Capture or upload an image to detect emotions
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Results Display (hidden initially) -->
+                    <div id="results-display" class="hidden">
+                        <!-- Primary Emotion -->
+                        <div class="emotion-display" id="primary-emotion-display">
+                            <div class="emotion-emoji" id="emotion-emoji">😊</div>
+                            <div class="emotion-label" id="emotion-label">HAPPY</div>
+                            <div class="emotion-confidence" id="emotion-confidence">95.5% Confidence</div>
+                        </div>
+
+                        <!-- All Emotions Breakdown -->
+                        <div>
+                            <h3 style="margin-bottom: 1.5rem; font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>📊</span>
+                                Detailed Breakdown
+                            </h3>
+                            <div class="emotion-bars" id="emotion-bars">
+                                <!-- Dynamic emotion bars will be inserted here -->
+                            </div>
+                        </div>
+
+                        <!-- Face Details -->
+                        <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(255, 255, 255, 0.08); border-radius: 15px;">
+                            <h3 style="margin-bottom: 1rem; font-size: 1.3rem; display: flex; align-items: center; gap: 0.5rem;">
+                                <span>👤</span>
+                                Face Details
+                            </h3>
+                            <div id="face-details" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 1.1rem;">
+                                <!-- Dynamic face details will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <div class="loading-text">Analyzing emotions...</div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
