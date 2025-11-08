@@ -450,6 +450,9 @@ async function analyzeImage(imageBlob) {
         // Convert blob to base64
         const base64 = await blobToBase64(imageBlob);
         
+        // Check if auto-send to n8n is enabled
+        const autoSendN8N = document.getElementById('n8n-auto-send').checked;
+        
         // Call API
         const response = await fetch(`${API_URL}/detect-emotion`, {
             method: 'POST',
@@ -458,7 +461,8 @@ async function analyzeImage(imageBlob) {
             },
             body: JSON.stringify({
                 image: base64.split(',')[1], // Remove data:image/jpeg;base64, prefix
-                sensitivity: 'high' // Use high sensitivity by default
+                sensitivity: 'high', // Use high sensitivity by default
+                send_to_n8n: autoSendN8N // Auto-send to n8n if enabled
             })
         });
 
@@ -476,13 +480,32 @@ async function analyzeImage(imageBlob) {
                 image: base64
             };
             
-            // Enable report generation
+            // Enable report generation and n8n send button
             if (generateReportBtn) {
                 generateReportBtn.disabled = false;
             }
+            document.getElementById('send-to-n8n-btn').disabled = false;
             
             displayResults(data);
             showNotification('Analysis complete!', 'success');
+            
+            // Show n8n integration result if auto-send was enabled
+            if (autoSendN8N && data.n8n_integration) {
+                const n8nStatusEl = document.getElementById('n8n-status');
+                n8nStatusEl.style.display = 'block';
+                
+                if (data.n8n_integration.success) {
+                    n8nStatusEl.className = 'success';
+                    n8nStatusEl.textContent = '✅ Auto-sent to n8n workflow successfully!';
+                } else {
+                    n8nStatusEl.className = 'error';
+                    n8nStatusEl.textContent = '❌ n8n auto-send failed: ' + data.n8n_integration.error;
+                }
+                
+                setTimeout(() => {
+                    n8nStatusEl.style.display = 'none';
+                }, 5000);
+            }
         } else {
             throw new Error(data.error || 'Analysis failed');
         }
@@ -954,4 +977,99 @@ function generateCSVReport() {
     
     showNotification('CSV report downloaded successfully!', 'success');
 }
+
+// ========================================
+// n8n WORKFLOW INTEGRATION
+// ========================================
+
+async function sendToN8N(emotionData, userText = null) {
+    const n8nStatusEl = document.getElementById('n8n-status');
+    
+    try {
+        n8nStatusEl.style.display = 'block';
+        n8nStatusEl.className = 'info';
+        n8nStatusEl.textContent = '🔄 Sending to n8n workflow...';
+        
+        const response = await fetch(`${API_URL}/n8n/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                emotion_data: emotionData,
+                user_text: userText
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            n8nStatusEl.className = 'success';
+            n8nStatusEl.textContent = '✅ Successfully sent to n8n workflow!';
+            setTimeout(() => {
+                n8nStatusEl.style.display = 'none';
+            }, 5000);
+        } else {
+            n8nStatusEl.className = 'error';
+            n8nStatusEl.textContent = '❌ Failed to send to n8n: ' + result.error;
+        }
+    } catch (error) {
+        n8nStatusEl.className = 'error';
+        n8nStatusEl.textContent = '❌ Error connecting to n8n: ' + error.message;
+    }
+}
+
+async function testN8NConnection() {
+    const n8nStatusEl = document.getElementById('n8n-status');
+    const testBtn = document.getElementById('test-n8n-btn');
+    
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<span class="btn-icon">⏳</span> Testing...';
+    
+    try {
+        n8nStatusEl.style.display = 'block';
+        n8nStatusEl.className = 'info';
+        n8nStatusEl.textContent = '🔄 Testing n8n connection...';
+        
+        const response = await fetch(`${API_URL}/n8n/test`);
+        const result = await response.json();
+        
+        if (result.success) {
+            n8nStatusEl.className = 'success';
+            n8nStatusEl.textContent = '✅ n8n webhook is working! Status: ' + result.status_code;
+        } else {
+            n8nStatusEl.className = 'error';
+            n8nStatusEl.textContent = '❌ n8n connection failed: ' + result.error;
+        }
+    } catch (error) {
+        n8nStatusEl.className = 'error';
+        n8nStatusEl.textContent = '❌ Cannot reach n8n: ' + error.message;
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = '<span class="btn-icon">🧪</span> Test n8n Connection';
+        
+        setTimeout(() => {
+            n8nStatusEl.style.display = 'none';
+        }, 7000);
+    }
+}
+
+// Event Listeners for n8n Integration
+document.getElementById('send-to-n8n-btn').addEventListener('click', () => {
+    if (lastAnalysisResult) {
+        sendToN8N(lastAnalysisResult);
+    }
+});
+
+document.getElementById('test-n8n-btn').addEventListener('click', testN8NConnection);
+
+// Auto-send toggle
+document.getElementById('n8n-auto-send').addEventListener('change', (e) => {
+    const isEnabled = e.target.checked;
+    if (isEnabled) {
+        showNotification('n8n auto-send enabled! Results will be sent automatically.', 'success');
+    } else {
+        showNotification('n8n auto-send disabled.', 'info');
+    }
+});
 

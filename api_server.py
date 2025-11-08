@@ -4,6 +4,8 @@ import boto3
 import base64
 import os
 from datetime import datetime
+import requests
+import json
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -11,6 +13,10 @@ CORS(app)  # Enable CORS for all routes
 # AWS Configuration
 REGION = os.getenv('AWS_REGION', 'ap-south-1')
 BUCKET = os.getenv('S3_BUCKET', 'emotion-recognition5068')
+
+# n8n Workflow Configuration
+N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL', 'https://finaldestination972003.app.n8n.cloud/webhook-test/chatbot-input')
+N8N_ENABLED = os.getenv('N8N_ENABLED', 'true').lower() == 'true'
 
 s3 = boto3.client('s3', region_name=REGION)
 rekognition = boto3.client('rekognition', region_name=REGION)
@@ -65,6 +71,85 @@ def _postprocess_emotions(emotions, sensitivity='medium'):
 
     # if top is not CALM, return normally
     return top.get('Type'), round(top_conf, 2), emotions
+
+
+def send_to_n8n_workflow(emotion_data, user_text=None):
+    """
+    Send emotion analysis results to n8n workflow
+    
+    Args:
+        emotion_data: Dict with emotion analysis results
+        user_text: Optional text input to accompany the emotion data
+    
+    Returns:
+        Dict with n8n response or error
+    """
+    if not N8N_ENABLED:
+        return {"success": False, "message": "n8n integration is disabled"}
+    
+    try:
+        # Construct text for n8n workflow
+        emotion = emotion_data.get('primary_emotion', 'UNKNOWN')
+        confidence = emotion_data.get('confidence', 0)
+        
+        if user_text:
+            raw_text = user_text
+        else:
+            # Generate descriptive text from emotion data
+            raw_text = f"Person detected with {emotion} emotion at {confidence}% confidence"
+            
+            # Add additional context
+            if emotion_data.get('face_details'):
+                age_range = emotion_data['face_details'].get('age_range', {})
+                gender = emotion_data['face_details'].get('gender', {})
+                if age_range:
+                    raw_text += f", age approximately {age_range.get('Low')}-{age_range.get('High')}"
+                if gender:
+                    raw_text += f", {gender.get('Value', 'unknown')} gender"
+        
+        # Prepare payload for n8n webhook
+        payload = {
+            "raw_text": raw_text,
+            "emotion_data": {
+                "primary_emotion": emotion,
+                "confidence": confidence,
+                "all_emotions": emotion_data.get('all_emotions', []),
+                "timestamp": datetime.now().isoformat(),
+                "faces_count": emotion_data.get('faces_count', 0)
+            }
+        }
+        
+        # Send to n8n webhook
+        response = requests.post(
+            N8N_WEBHOOK_URL,
+            json=payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return {
+                "success": True,
+                "n8n_response": response.json() if response.text else {},
+                "status_code": response.status_code
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"n8n returned status {response.status_code}",
+                "response": response.text
+            }
+            
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "error": "n8n workflow request timed out"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Failed to send to n8n: {str(e)}"
+        }
 
 
 @app.route('/')
@@ -160,6 +245,15 @@ def detect_emotion():
                 "emotions_raw": emotions
             }
         }
+        
+        # Send to n8n workflow if enabled and requested
+        n8n_result = None
+        send_to_n8n = data.get('send_to_n8n', False) if isinstance(data, dict) else False
+        user_text = data.get('user_text', None) if isinstance(data, dict) else None
+        
+        if send_to_n8n:
+            n8n_result = send_to_n8n_workflow(result, user_text)
+            result['n8n_integration'] = n8n_result
         
         return jsonify(result), 200
         
@@ -269,6 +363,108 @@ def add_face():
             "success": False,
             "error": str(e)
         }), 500
+
+
+@app.route('/n8n/send', methods=['POST'])
+def send_to_n8n():
+    """
+    Manually send data to n8n workflow
+    Accepts: emotion analysis results or custom text
+    """
+    try:
+        data = request.get_json()
+        
+        # Check if emotion data or just text
+        if 'emotion_data' in data:
+            emotion_data = data['emotion_data']
+            user_text = data.get('user_text')
+            result = send_to_n8n_workflow(emotion_data, user_text)
+        elif 'raw_text' in data:
+            # Direct text input to n8n
+            payload = {"raw_text": data['raw_text']}
+            response = requests.post(
+                N8N_WEBHOOK_URL,
+                json=payload,
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            result = {
+                "success": response.status_code == 200,
+                "n8n_response": response.json() if response.text else {},
+                "status_code": response.status_code
+            }
+        else:
+            return jsonify({"error": "Provide 'emotion_data' or 'raw_text'"}), 400
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@app.route('/n8n/config', methods=['GET', 'POST'])
+def n8n_config():
+    """
+    Get or update n8n configuration
+    """
+    global N8N_WEBHOOK_URL, N8N_ENABLED
+    
+    if request.method == 'GET':
+        return jsonify({
+            "webhook_url": N8N_WEBHOOK_URL,
+            "enabled": N8N_ENABLED
+        }), 200
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        if 'webhook_url' in data:
+            N8N_WEBHOOK_URL = data['webhook_url']
+        
+        if 'enabled' in data:
+            N8N_ENABLED = data['enabled']
+        
+        return jsonify({
+            "success": True,
+            "webhook_url": N8N_WEBHOOK_URL,
+            "enabled": N8N_ENABLED
+        }), 200
+
+
+@app.route('/n8n/test', methods=['GET'])
+def test_n8n():
+    """
+    Test n8n webhook connection
+    """
+    try:
+        test_payload = {
+            "raw_text": "Test message from Emotion Recognition API - Testing n8n integration"
+        }
+        
+        response = requests.post(
+            N8N_WEBHOOK_URL,
+            json=test_payload,
+            headers={'Content-Type': 'application/json'},
+            timeout=10
+        )
+        
+        return jsonify({
+            "success": True,
+            "status_code": response.status_code,
+            "response": response.text,
+            "message": "n8n webhook is responding"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "Failed to connect to n8n webhook"
+        }), 500
+
 
 if __name__ == '__main__':
     # Set AWS credentials via environment variables or AWS CLI config

@@ -159,6 +159,31 @@
                                 Generate & Download Report
                             </button>
                         </div>
+
+                        <!-- n8n Integration Section -->
+                        <div class="setting-item" style="grid-column: 1 / -1; margin-top: 1rem; border-top: 2px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem;">
+                                <span>🔗</span> n8n Workflow Integration
+                            </label>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
+                                <label class="toggle-switch" style="margin: 0;">
+                                    <input type="checkbox" id="n8n-auto-send" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span style="font-size: 0.95rem; opacity: 0.9;">Auto-send to n8n workflow</span>
+                            </div>
+                            <button class="btn btn-primary" id="send-to-n8n-btn" style="width: 100%; margin-top: 0.5rem;" disabled>
+                                <span class="btn-icon">🚀</span>
+                                Send to n8n Workflow
+                            </button>
+                            <button class="btn btn-secondary" id="test-n8n-btn" style="width: 100%; margin-top: 0.5rem;">
+                                <span class="btn-icon">🧪</span>
+                                Test n8n Connection
+                            </button>
+                            <div id="n8n-status" style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 8px; font-size: 0.9rem; display: none;">
+                                <!-- n8n status messages will appear here -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
